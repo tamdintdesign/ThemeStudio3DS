@@ -31,7 +31,10 @@ jobs:
           target=dist/ThemeStudio3DS
           mkdir -p "$target/licenses"
           cp LICENSE THIRD-PARTY-NOTICES.md "$target/"
-          pkg="$HOME/.nuget/packages"
+          printf '%s\n' '3DS Theme Studio 0.2.0 for Linux x86-64' 'Launch ./ThemeStudio3DS from this directory. The .NET runtime is included.' 'Source and documentation: https://github.com/tamdintdesign/ThemeStudio3DS' > "$target/README.txt"
+          pkg=$(jq -er '.packageFolders | keys[0]' obj/project.assets.json)
+          runtime=$(jq -er '.runtimeOptions.includedFrameworks[] | select(.name=="Microsoft.NETCore.App") | .version' "$target/ThemeStudio3DS.runtimeconfig.json")
+          printf 'Bundled .NET runtime %s\n' "$runtime"
           copy_notices() {
             local name="$1" package="$2" file
             shift 2
@@ -39,7 +42,7 @@ jobs:
               cp "$pkg/$package/$file" "$target/licenses/$name-$file"
             done
           }
-          copy_notices dotnet microsoft.netcore.app.runtime.linux-x64/10.0.13 LICENSE.TXT THIRD-PARTY-NOTICES.TXT
+          copy_notices dotnet "microsoft.netcore.app.runtime.linux-x64/$runtime" LICENSE.TXT THIRD-PARTY-NOTICES.TXT
           copy_notices SkiaSharp skiasharp.nativeassets.linux/3.119.4 LICENSE.txt THIRD-PARTY-NOTICES.txt
           copy_notices HarfBuzzSharp harfbuzzsharp.nativeassets.linux/8.3.1.3 LICENSE.txt THIRD-PARTY-NOTICES.txt
           copy_notices CommunityToolkit communitytoolkit.mvvm/8.4.2 License.md ThirdPartyNotices.txt
