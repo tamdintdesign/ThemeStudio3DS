@@ -1,0 +1,160 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ThemeStudio3DS.ViewModels"
+        x:Class="ThemeStudio3DS.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        x:CompileBindings="True"
+        Title="{Binding WindowTitle}"
+        Width="1100" Height="700" MinWidth="760" MinHeight="460"
+        Background="#171C24">
+
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#303A45"/>
+            <Setter Property="Foreground" Value="#E5E9ED"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#465563"/>
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#252E39"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="#A6B2BE"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Background="#202732" Padding="14,10">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBlock Text="3DS Theme Studio" FontSize="18" FontWeight="SemiBold"
+                           Foreground="#A7C7AD" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" IsEnabled="{Binding !IsBusy}">
+                    <Button Content="Nouveau" Click="New_Click" HotKey="Ctrl+N"/>
+                    <Button Content="Ouvrir" Click="Open_Click" HotKey="Ctrl+O"/>
+                    <Button Content="Enregistrer" Click="Save_Click" HotKey="Ctrl+S"/>
+                    <Button Content="Enregistrer sous" Click="SaveAs_Click" HotKey="Ctrl+Shift+S"/>
+                    <Button Content="Exporter pour Anemone3DS" Click="Export_Click" HotKey="Ctrl+E"
+                            ToolTip.Tip="Deux fonds statiques, sans musique, icônes ni couleurs personnalisées"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="122,*,190">
+            <Border Background="#1D242D">
+                <ScrollViewer Padding="10,14">
+                    <StackPanel Spacing="8">
+                        <Button Content="Écrans" Command="{Binding ShowScreensCommand}"
+                                HorizontalAlignment="Stretch"/>
+                        <Button Content="Images" Command="{Binding ShowImagesCommand}"
+                                HorizontalAlignment="Stretch"/>
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="2,12,2,0"/>
+                        <TextBlock Classes="muted" Text="{Binding ProjectState}" TextWrapping="Wrap" Margin="2,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <ScrollViewer Grid.Column="1" Padding="14">
+                <StackPanel Spacing="12" IsEnabled="{Binding !IsBusy}">
+                    <Button Content="Importer un pack ZIP" Click="ImportZip_Click" HotKey="Ctrl+I"
+                            Background="#40584B" HorizontalAlignment="Left"/>
+                    <TextBlock Classes="muted" Text="Vous pouvez déposer un PNG ou un ZIP dans la fenêtre."
+                               TextWrapping="Wrap"/>
+                    <Expander Header="Rapport d’importation">
+                        <SelectableTextBlock Text="{Binding Report}" TextWrapping="Wrap"/>
+                    </Expander>
+
+                    <StackPanel IsVisible="{Binding !ShowingImages}" Spacing="8">
+                        <TextBlock Text="Prévisualisation" FontSize="22" FontWeight="SemiBold"/>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <Border Classes="card">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Écran supérieur" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                    <TextBlock Classes="muted" Text="400 × 240"/>
+                                    <Viewbox Stretch="Uniform" MaxHeight="232">
+                                        <Grid Width="400" Height="240" Background="#333E4A">
+                                            <TextBlock Text="Aucune image" IsVisible="{Binding TopEmpty}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <Image Source="{Binding TopPreview}" Stretch="Uniform"/>
+                                        </Grid>
+                                    </Viewbox>
+                                    <Button Content="Choisir un PNG" Click="ImportTop_Click" HorizontalAlignment="Stretch"/>
+                                    <Button Content="Recadrer" Click="CropTop_Click" IsEnabled="{Binding !TopEmpty}"
+                                            HorizontalAlignment="Stretch"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Classes="card">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Écran inférieur" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                    <TextBlock Classes="muted" Text="320 × 240"/>
+                                    <Viewbox Stretch="Uniform" MaxHeight="232">
+                                        <Grid Width="320" Height="240" Background="#333E4A">
+                                            <TextBlock Text="Aucune image" IsVisible="{Binding BottomEmpty}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <Image Source="{Binding BottomPreview}" Stretch="Uniform"/>
+                                        </Grid>
+                                    </Viewbox>
+                                    <Button Content="Choisir un PNG" Click="ImportBottom_Click" HorizontalAlignment="Stretch"/>
+                                    <Button Content="Recadrer" Click="CropBottom_Click" IsEnabled="{Binding !BottomEmpty}"
+                                            HorizontalAlignment="Stretch"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel IsVisible="{Binding ShowingImages}" Spacing="8">
+                        <TextBlock Text="Images du projet" FontSize="22" FontWeight="SemiBold"/>
+                        <ItemsControl ItemsSource="{Binding Items}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ResourceItem">
+                                    <Border Classes="card" Margin="0,0,0,8">
+                                        <Grid ColumnDefinitions="72,*,Auto" ColumnSpacing="9">
+                                            <Border Background="#171C24" Height="54" CornerRadius="4">
+                                                <Image Source="{Binding Preview}" Stretch="Uniform"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Classes="muted" Text="{Binding Details}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Content="{Binding Action}" Click="Replace_Click"
+                                                    VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Column="2" Background="#202732">
+                <ScrollViewer Padding="12,14">
+                    <StackPanel Spacing="10" IsEnabled="{Binding !IsBusy}">
+                        <TextBlock Text="Propriétés" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock Classes="muted" Text="Nom du thème"/>
+                        <TextBox Text="{Binding Name, Mode=TwoWay}" MaxLength="150"
+                                 AutomationProperties.Name="Nom du thème"/>
+                        <TextBlock Classes="muted" Text="Auteur"/>
+                        <TextBox Text="{Binding Author, Mode=TwoWay}" MaxLength="150"
+                                 AutomationProperties.Name="Auteur"/>
+                        <TextBlock Classes="muted" Text="Couleur principale"/>
+                        <TextBox Text="{Binding Accent, Mode=TwoWay}" MaxLength="7" PlaceholderText="#RRGGBB"
+                                 AutomationProperties.Name="Couleur principale"/>
+                        <Border Height="18" CornerRadius="4" Background="{Binding AccentBrush}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Background="#202732">
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Height="3"/>
+            <TextBlock Margin="14,8" Text="{Binding Status}" Foreground="#A7C7AD"
+                       TextWrapping="Wrap" FontSize="12"/>
+        </StackPanel>
+    </Grid>
+</Window>
