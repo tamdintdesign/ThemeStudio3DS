@@ -1,0 +1,73 @@
+name: Build Linux release asset
+
+on:
+  push:
+    branches: [build/v0.2.0-linux]
+    paths: [.github/workflows/linux-release.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_ID: '454415245'
+      ASSET: ThemeStudio3DS-v0.2.0-linux-x64.tar.xz
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.113'
+      - name: Build, test and package
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project Tests -c Release
+          dotnet publish ThemeStudio3DS.csproj -c Release -r linux-x64 --self-contained true -o dist/ThemeStudio3DS
+          target=dist/ThemeStudio3DS
+          mkdir -p "$target/licenses"
+          cp LICENSE THIRD-PARTY-NOTICES.md "$target/"
+          pkg="$HOME/.nuget/packages"
+          copy_notices() {
+            local name="$1" package="$2" file
+            shift 2
+            for file in "$@"; do
+              cp "$pkg/$package/$file" "$target/licenses/$name-$file"
+            done
+          }
+          copy_notices dotnet microsoft.netcore.app.runtime.linux-x64/10.0.13 LICENSE.TXT THIRD-PARTY-NOTICES.TXT
+          copy_notices SkiaSharp skiasharp.nativeassets.linux/3.119.4 LICENSE.txt THIRD-PARTY-NOTICES.txt
+          copy_notices HarfBuzzSharp harfbuzzsharp.nativeassets.linux/8.3.1.3 LICENSE.txt THIRD-PARTY-NOTICES.txt
+          copy_notices CommunityToolkit communitytoolkit.mvvm/8.4.2 License.md ThirdPartyNotices.txt
+          fetch() {
+            curl -fsSL --retry 4 "$1" -o "$target/licenses/$2"
+          }
+          fetch https://raw.githubusercontent.com/AvaloniaUI/Avalonia/cf8e564674700348947e93ab19105f27afe859a9/licence.md Avalonia-LICENSE.txt
+          fetch https://raw.githubusercontent.com/rsms/inter/master/LICENSE.txt Inter-OFL.txt
+          fetch https://raw.githubusercontent.com/kekekeks/MicroCom/76785efcafd91b5902fd19dd11145f6dd655b7b4/LICENSE MicroCom-LICENSE.txt
+          fetch https://raw.githubusercontent.com/tmds/Tmds.DBus/b4a7fed0b878f74cb54f7cca84d2889af4e596ba/COPYING Tmds-DBus-LICENSE.txt
+          test -x "$target/ThemeStudio3DS"
+          test -f "$target/libcoreclr.so"
+          cd dist
+          tar --exclude='*.pdb' -cf - ThemeStudio3DS | xz -T2 -4 > "$ASSET"
+          xz -t "$ASSET"
+          sha256sum "$ASSET" > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: Attach assets to the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/releases/$RELEASE_ID" --jq '.draft and .tag_name == "v0.2.0"' | grep -qx true
+          cd dist
+          for entry in "$ASSET:application/x-xz" "SHA256SUMS:text/plain"; do
+            file="${entry%%:*}"
+            mime="${entry#*:}"
+            gh api --method POST "https://uploads.github.com/repos/$GH_REPO/releases/$RELEASE_ID/assets?name=$file" -H "Content-Type: $mime" --input "$file" --jq '[.name,.state,.digest] | @tsv'
+          done
